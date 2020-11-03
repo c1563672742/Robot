@@ -3,6 +3,6 @@
 int main(int argc, const char *argv[])
 {
 	int i=0;
-	for(;;);
+	while(1);
 	return 0;
 }

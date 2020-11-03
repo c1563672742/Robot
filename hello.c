@@ -2,7 +2,6 @@
 
 int main(int argc, const char *argv[])
 {
-	int i=0;
-	for(;;);
+	printf("HELLO WORLD !\n");
 	return 0;
 }

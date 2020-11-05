@@ -19,15 +19,15 @@
 #define Q 6  //查询
 #define QA 7  //查询所有
 #define RERUEN 8 //返回
-
+//通信结构体
 typedef struct {
-	int types;
-	char uid[N];
-	char password[N];
-	char name[N];
-	char sno[N];
-	int sex;
-	char data[N];
+	int types;   		//通信类型
+	char uid[N]; 		//用户账号
+	char password[N]; 	//用户密码
+	char name[N]; 		//学生姓名
+	char sno[N]; 		//学号
+	int sex; 			//学生性别
+	char data[N]; 		//通信信息
 }__attribute__((packed)) MSG;
 
 //注册
@@ -72,6 +72,7 @@ int do_login(int sockfd,MSG *msg)
 		printf("Fail to recv.\n");
 		return -1;
 	}
+	//判断数据表中是否有该用户，有则进入系统
 	if(strncmp(msg->data,"OK",3) == 0){
 		printf("login\n");
 		return 1;
@@ -96,6 +97,7 @@ int do_login_select(int sockfd,MSG *msg)
 			continue;
 		}
 		while(getchar() !='\n' );
+		//选择执行的函数
 		switch (n){
 		case 1:
 			do_add(sockfd,msg);
@@ -126,6 +128,7 @@ int do_add(int sockfd,MSG *msg)
 			printf("Invalid operation.\n");
 			continue;
 		}
+		//如果输入的是　＃，退出循环返回到上一层
 		if(strncmp(msg->sno,"#",1)==0) break; 
 		getchar();
 		printf("Input student name:\n");
@@ -154,14 +157,15 @@ int do_add(int sockfd,MSG *msg)
 			printf("Fail to recv.\n");
 			return -1;
 		}
+		//判断数据库是否操作成功
 		printf("%s\n",msg->data);
 		if(strncmp(msg->data,"OK",2)==0){
 			printf("%s\n",msg->data);
+			printf("add over.\n");
 		}else{
 			printf("%s\n",msg->data);
 		}
 	}
-	printf("add over.\n");
 	return 0;
 }
 
@@ -174,15 +178,18 @@ int do_query_all(int sockfd,MSG *msg)
 	//bzero(&recvmsg,sizeof(recvmsg[500])*500);
 	//指定类型
 	msg->types = QA;
+	//将通讯类型传送给服务器
 	if(send(sockfd,msg,sizeof(MSG),0)<0)
 	{
 		printf("Fail to send.\n");
 		return -1;
 	}
+	//接收服务器传回的结构体数组
 	if(recv(sockfd,&recvmsg,sizeof(recvmsg[500])*500,0)<0){
 		printf("Fail to recv.\n");
 		return -1;
 	}
+	//打印结构体数组中我们需要的信息
 	printf("%s\n",recvmsg[0].data);
 	if(strncmp(recvmsg[0].data,"OK",2)==0){
 		for(i=0;i<n;i++){
@@ -200,7 +207,7 @@ int do_query_all(int sockfd,MSG *msg)
 	return 0;
 }
 
-//查询
+//按学号查询
 int do_query(int sockfd,MSG *msg)
 {
 	int num;
@@ -214,6 +221,7 @@ int do_query(int sockfd,MSG *msg)
 		}
 		getchar();
 		if(strncmp(msg->sno,"#",1)==0) break;
+		//发送通讯类型和学号给服务器
 		if(send(sockfd,msg,sizeof(MSG),0)<0)
 		{
 			printf("Fail to send.\n");
@@ -237,6 +245,7 @@ int do_query(int sockfd,MSG *msg)
 			continue;
 		}
 		while(1){
+			//查询成功后判断用户是否对该学生进行操作
 			printf("Manage this data?(y or n)");
 			if(scanf("%c",&c)!=1){
 				printf("Invalid input.\n");
@@ -245,6 +254,7 @@ int do_query(int sockfd,MSG *msg)
 				if(c=='n'||c=='#') break;
 				if(c=='y'){
 					while(1){
+						//操作列表
 						printf("****************************************************\n");
 						printf("******    1.modify    2.delete    3.return    ******\n");
 						printf("****************************************************\n");
@@ -254,6 +264,7 @@ int do_query(int sockfd,MSG *msg)
 							continue;
 						}
 						while(getchar() !='\n' );
+						//根据用户选择进入对应的函数
 						switch (num){
 						case 1:
 							do_modify(sockfd,msg);
@@ -267,6 +278,7 @@ int do_query(int sockfd,MSG *msg)
 						default:
 							printf("Invalid input.\n");
 						}
+						//根据通讯结束后根据通讯类型跳出循环
 						if(msg->types==D) break;
 						if(msg->types==RERUEN) break;
 					}
@@ -351,7 +363,7 @@ int main(int argc,const char *argv[])
 		perror("socket");
 		return -1;
 	}
-
+	//填充结构体
 	struct sockaddr_in serveraddr;
 	bzero(&serveraddr,sizeof(serveraddr));
 	serveraddr.sin_family = AF_INET;
@@ -380,6 +392,7 @@ int main(int argc,const char *argv[])
 			break;
 		case 2:
 			if(do_login(sockfd,&msg)==1){
+				//登陆成功进入系统
 				do_login_select(sockfd,&msg);
 			}
 			break;

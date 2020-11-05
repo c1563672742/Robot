@@ -30,19 +30,19 @@
 
 //定义通信结构体
 typedef struct {
-	int types;
-	char uid[N];
-	char password[N];
-	char name[N];
-	char sno[N];
-	int sex;
-	char data[N];
+	int types; 			//通讯类型
+	char uid[N];  		//用户账号
+	char password[N]; 	//用户密码
+	char name[N]; 		//学生姓名
+	char sno[N]; 		//学号
+	int sex; 			//学生性别
+	char data[N]; 		//通讯信息
 }__attribute__((packed)) MSG;
-
+//定义数据库结构体
 sqlite3 *db;
 
 
-
+//回收子进程
 void sig_child_handle(int signo)
 {
 	if(signo == SIGCHLD)
@@ -50,7 +50,7 @@ void sig_child_handle(int signo)
 }
 
 
-//选项
+//根据通信类型选则执行函数
 int do_client(int acceptfd,sqlite3 *db)
 {
 	MSG msg;
@@ -96,6 +96,7 @@ int do_register(int acceptfd,MSG *msg,sqlite3 *db)
 	char *errmsg = NULL;
 	char sql[SQL] = {};
 	int ret;
+	//向数据表中插入用户信息,反馈信息发送到data中
 	sprintf(sql,"insert into usr values('%s', '%s');",msg->uid,msg->password);
 	printf("%s\n",sql);
 	if(sqlite3_exec(db,sql,NULL,NULL,&errmsg) != SQLITE_OK)
@@ -124,6 +125,7 @@ int do_login(int acceptfd,MSG *msg,sqlite3 *db)
 	int nrow;
 	int ncloumn;
 	char **resultp;
+	//查询用户是否存在，将反馈信息放到data结构体中
 	sprintf(sql,"select * from usr where uid = '%s' and password = '%s';",msg->uid,msg->password);
 	printf("%s\n",sql);
 	if(sqlite3_get_table(db,sql,&resultp,&nrow,&ncloumn,&errmsg)!= SQLITE_OK){
@@ -155,7 +157,7 @@ int do_add(int acceptfd,MSG *msg,sqlite3 *db)
 	char **resultp;
 	int nrow;
 	int ncloumn;
-	//检查学号是否存在
+	//检查要添加的学号是否存在，不存在就将学生信息插入到数据表中
 	sprintf(sql,"select * from std_info where sno = %s;",msg->sno);
 	printf("%s\n",sql);
 	if(sqlite3_get_table(db,sql,&resultp,&nrow,&ncloumn,&errmsg)!= SQLITE_OK){
@@ -214,6 +216,7 @@ int do_modify(int acceptfd,MSG *msg,sqlite3 *db)
 {
 	char sql[SQL] = {};
 	char *errmsg;
+	//根据结构体中的信息更新数据表
 	sprintf(sql,"update std_info set name = '%s',sex = %d where sno = '%s';",msg->name,msg->sex,msg->sno);
 	printf("%s\n",sql);
 	if(sqlite3_exec(db,sql,NULL,NULL,&errmsg)!=SQLITE_OK){
@@ -238,6 +241,7 @@ int do_query(int acceptfd,MSG *msg,sqlite3 *db)
 	char **resultp;
 	int nrow;
 	int ncloumn;
+	//按学生学号查询
 	sprintf(sql,"select * from std_info where sno = '%s';",msg->sno);
 	if(sqlite3_get_table(db,sql,&resultp,&nrow,&ncloumn,&errmsg)!= SQLITE_OK){
 		printf("sql:%s\n",errmsg);
@@ -267,17 +271,20 @@ int do_database()
 	char **resultp;
 	int nrow;
 	int ncloumn;
+	//创建数据库
 	printf("create database.\n");
 	if(sqlite3_open(DATABASE,&db)!=SQLITE_OK){
 		printf("%s\n",errmsg);
 		return -1;
 	}
+	//创建用户表
 	sprintf(sql,"create table if not exists usr(uid text primary key,password text);");
 	printf("%s\n",sql);
 	if(sqlite3_exec(db,sql,NULL,NULL,&errmsg)!=SQLITE_OK){
 		printf("%s\n",errmsg);
 		return -1;
 	}
+	//创建学生信息表
 	printf("create database.\n");
 	sprintf(sql,"create table if not exists std_info(name text,sno text primary key,sex integer);");
 	if(sqlite3_exec(db,sql,NULL,NULL,&errmsg)!=SQLITE_OK){
@@ -298,27 +305,28 @@ int do_query_all(int acceptfd,sqlite3 *db)
 	char **resultp;
 	int nrow;
 	int ncloumn;
-	printf("1..%d",sizeof(recvmsg[500]));
+	//遍历整个学生信息表
 	sprintf(sql,"select * from std_info;");
 	printf("%s\n",sql);
 	if(sqlite3_get_table(db,sql,&resultp,&nrow,&ncloumn,&errmsg)!=SQLITE_OK){
 		printf("sql:%s\n",errmsg);
 		return -1;
 	}
-	printf("2..%d",sizeof(recvmsg[500]));
 	if(nrow == 0){
 		strcpy(recvmsg[0].data,"table is empty.");
 	}else{
 		strcpy(recvmsg[0].data,"OK");
+		//将查询到的信息填装到结构体数组中
 		for(i=0;i<nrow;i++){
 			strcpy(recvmsg[i].name,resultp[j++]);
 			strcpy(recvmsg[i].sno,resultp[j++]);
 			recvmsg[i].sex = atoi(resultp[j++]);
-			printf("%s\n",recvmsg[i].name);
-			printf("%s\n",recvmsg[i].sno);
-			printf("%d\n",recvmsg[i].sex);
+			printf("name[%d]: %s\n",i,recvmsg[i].name);
+			printf("sno[%d]: %s\n",i,recvmsg[i].sno);
+			printf("sex[%d]:%d\n",i,recvmsg[i].sex);
 		}
 	}
+	//发送填装好的结构体数组
 	if(send(acceptfd,recvmsg,sizeof(recvmsg[500])*500,0)<0){
 		perror("Fail to send:");
 	}
